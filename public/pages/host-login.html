@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Login</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="form-container">
+      <h2>🏪 Host Login</h2>
+      
+      <div id="error-message" class="error-message" style="display: none;"></div>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input type="email" id="email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password *</label>
+          <input type="password" id="password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+      </form>
+
+      <p style="text-align: center; margin-top: 20px;">
+        Don't have an account? <a href="host-register.html">Register here</a>
+      </p>
+
+      <p style="text-align: center; margin-top: 10px;">
+        <a href="../index.html">← Back to home</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('login-form');
+    const errorDiv = document.getElementById('error-message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorDiv.style.display = 'none';
+
+      const data = {
+        host_email: document.getElementById('email').value,
+        host_password: document.getElementById('password').value
+      };
+
+      try {
+        const response = await fetch('http://localhost:3000/api/host/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          // Save token and user info
+          localStorage.setItem('token', result.token);
+          localStorage.setItem('role', 'host');
+          localStorage.setItem('user_id', result.host_id);
+          
+          console.log('Login successful, redirecting to host dashboard...');
+          
+          // Redirect to HOST dashboard
+          window.location.href = 'host-dashboard.html';
+        } else {
+          errorDiv.textContent = result.error || 'Login failed';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Login failed. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

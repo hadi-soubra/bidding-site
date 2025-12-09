@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Settings</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .settings-section {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .settings-section h3 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+
+    .address-card, .payment-card {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    .default-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #667eea;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+
+    .card-actions {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <div>
+        <strong>⚙️ Settings</strong>
+      </div>
+      <div class="nav-links">
+        <a href="items.html">Browse Auctions</a>
+        <a href="bidder-dashboard.html">Dashboard</a>
+        <a href="#" id="logout">Logout</a>
+      </div>
+    </nav>
+
+    <div class="dashboard">
+      <h2>My Settings</h2>
+
+      <!-- Shipping Addresses -->
+      <div class="settings-section">
+        <h3>📍 Shipping Addresses</h3>
+        <div id="addresses-list">
+          <div class="loading">Loading addresses...</div>
+        </div>
+        <button onclick="showAddAddressForm()" class="btn btn-primary" style="margin-top: 15px;">+ Add New Address</button>
+      </div>
+
+      <!-- Add Address Form (hidden by default) -->
+      <div id="add-address-form" class="settings-section" style="display: none;">
+        <h3>Add New Address</h3>
+        <div id="address-message" style="display: none; padding: 10px; margin-bottom: 15px; border-radius: 6px;"></div>
+        
+        <form id="address-form">
+          <div class="form-group">
+            <label>Address Line 1 *</label>
+            <input type="text" id="address_line1" required>
+          </div>
+
+          <div class="form-group">
+            <label>Address Line 2</label>
+            <input type="text" id="address_line2">
+          </div>
+
+          <div class="form-group">
+            <label>City *</label>
+            <input type="text" id="city" required>
+          </div>
+
+          <div class="form-group">
+            <label>State *</label>
+            <input type="text" id="state" required>
+          </div>
+
+          <div class="form-group">
+            <label>Postal Code *</label>
+            <input type="text" id="postal_code" required>
+          </div>
+
+          <div class="form-group">
+            <label>Country *</label>
+            <input type="text" id="country" required>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="is_default_address">
+              Set as default address
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-primary">Save Address</button>
+            <button type="button" onclick="hideAddAddressForm()" class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Payment Methods -->
+      <div class="settings-section">
+        <h3>💳 Payment Methods</h3>
+        <div id="payment-methods-list">
+          <div class="loading">Loading payment methods...</div>
+        </div>
+        <button onclick="showAddPaymentForm()" class="btn btn-primary" style="margin-top: 15px;">+ Add Payment Method</button>
+      </div>
+
+      <!-- Add Payment Form (hidden by default) -->
+      <div id="add-payment-form" class="settings-section" style="display: none;">
+        <h3>Add Payment Method</h3>
+        <div id="payment-message" style="display: none; padding: 10px; margin-bottom: 15px; border-radius: 6px;"></div>
+        
+        <form id="payment-form">
+          <div class="form-group">
+            <label>Payment Type *</label>
+            <select id="payment_type" required>
+              <option value="">Select type</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="PayPal">PayPal</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Card Brand</label>
+            <select id="card_brand">
+              <option value="">Select brand</option>
+              <option value="Visa">Visa</option>
+              <option value="Mastercard">Mastercard</option>
+              <option value="Amex">American Express</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Last 4 Digits</label>
+            <input type="text" id="card_last_four" maxlength="4" pattern="[0-9]{4}">
+          </div>
+
+          <div class="form-group">
+            <label>Expiry Month</label>
+            <input type="number" id="expiry_month" min="1" max="12">
+          </div>
+
+          <div class="form-group">
+            <label>Expiry Year</label>
+            <input type="number" id="expiry_year" min="2025" max="2035">
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="is_default_payment">
+              Set as default payment method
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-primary">Save Payment Method</button>
+            <button type="button" onclick="hideAddPaymentForm()" class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (!token || role !== 'bidder') {
+      window.location.href = 'bidder-login.html';
+    }
+
+    // Logout
+    document.getElementById('logout').addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.clear();
+      window.location.href = '../index.html';
+    });
+
+    // Load addresses
+    async function loadAddresses() {
+      try {
+        const response = await fetch('http://localhost:3000/api/bidder/addresses', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const addresses = await response.json();
+        displayAddresses(addresses);
+      } catch (error) {
+        console.error('Error loading addresses:', error);
+      }
+    }
+
+    // Display addresses
+    function displayAddresses(addresses) {
+      const container = document.getElementById('addresses-list');
+
+      if (addresses.length === 0) {
+        container.innerHTML = '<div class="empty-state">No addresses saved yet</div>';
+        return;
+      }
+
+      container.innerHTML = addresses.map(addr => `
+        <div class="address-card">
+          ${addr.is_default ? '<span class="default-badge">Default</span>' : ''}
+          <strong>${addr.address_line1}</strong><br>
+          ${addr.address_line2 ? addr.address_line2 + '<br>' : ''}
+          ${addr.city}, ${addr.state} ${addr.postal_code}<br>
+          ${addr.country}
+          <div class="card-actions">
+            <button onclick="deleteAddress(${addr.address_id})" class="btn btn-danger" style="padding: 8px 15px; font-size: 0.9rem;">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Delete address
+    async function deleteAddress(id) {
+      if (!confirm('Delete this address?')) return;
+
+      try {
+        await fetch(`http://localhost:3000/api/bidder/addresses/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        loadAddresses();
+      } catch (error) {
+        alert('Failed to delete address');
+      }
+    }
+
+    // Show/hide address form
+    function showAddAddressForm() {
+      document.getElementById('add-address-form').style.display = 'block';
+    }
+
+    function hideAddAddressForm() {
+      document.getElementById('add-address-form').style.display = 'none';
+      document.getElementById('address-form').reset();
+    }
+
+    // Add address
+    document.getElementById('address-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        address_line1: document.getElementById('address_line1').value,
+        address_line2: document.getElementById('address_line2').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        postal_code: document.getElementById('postal_code').value,
+        country: document.getElementById('country').value,
+        is_default: document.getElementById('is_default_address').checked
+      };
+
+      try {
+        const response = await fetch('http://localhost:3000/api/bidder/addresses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          hideAddAddressForm();
+          loadAddresses();
+        } else {
+          const error = await response.json();
+          alert(error.error);
+        }
+      } catch (error) {
+        alert('Failed to add address');
+      }
+    });
+
+    // Load payment methods
+    async function loadPaymentMethods() {
+      try {
+        const response = await fetch('http://localhost:3000/api/bidder/payment-methods', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const methods = await response.json();
+        displayPaymentMethods(methods);
+      } catch (error) {
+        console.error('Error loading payment methods:', error);
+      }
+    }
+
+    // Display payment methods
+    function displayPaymentMethods(methods) {
+      const container = document.getElementById('payment-methods-list');
+
+      if (methods.length === 0) {
+        container.innerHTML = '<div class="empty-state">No payment methods saved yet</div>';
+        return;
+      }
+
+      container.innerHTML = methods.map(pm => `
+        <div class="payment-card">
+          ${pm.is_default ? '<span class="default-badge">Default</span>' : ''}
+          <strong>${pm.payment_type}</strong><br>
+          ${pm.card_brand ? pm.card_brand + ' ' : ''}
+          ${pm.card_last_four ? '****' + pm.card_last_four : ''}<br>
+          ${pm.expiry_month && pm.expiry_year ? `Expires: ${pm.expiry_month}/${pm.expiry_year}` : ''}
+          <div class="card-actions">
+            <button onclick="deletePaymentMethod(${pm.payment_id})" class="btn btn-danger" style="padding: 8px 15px; font-size: 0.9rem;">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Delete payment method
+    async function deletePaymentMethod(id) {
+      if (!confirm('Delete this payment method?')) return;
+
+      try {
+        await fetch(`http://localhost:3000/api/bidder/payment-methods/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        loadPaymentMethods();
+      } catch (error) {
+        alert('Failed to delete payment method');
+      }
+    }
+
+    // Show/hide payment form
+    function showAddPaymentForm() {
+      document.getElementById('add-payment-form').style.display = 'block';
+    }
+
+    function hideAddPaymentForm() {
+      document.getElementById('add-payment-form').style.display = 'none';
+      document.getElementById('payment-form').reset();
+    }
+
+    // Add payment method
+    document.getElementById('payment-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        payment_type: document.getElementById('payment_type').value,
+        card_brand: document.getElementById('card_brand').value,
+        card_last_four: document.getElementById('card_last_four').value,
+        expiry_month: document.getElementById('expiry_month').value ? parseInt(document.getElementById('expiry_month').value) : null,
+        expiry_year: document.getElementById('expiry_year').value ? parseInt(document.getElementById('expiry_year').value) : null,
+        is_default: document.getElementById('is_default_payment').checked
+      };
+
+      try {
+        const response = await fetch('http://localhost:3000/api/bidder/payment-methods', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          hideAddPaymentForm();
+          loadPaymentMethods();
+        } else {
+          const error = await response.json();
+          alert(error.error);
+        }
+      } catch (error) {
+        alert('Failed to add payment method');
+      }
+    });
+
+    // Load data on page load
+    loadAddresses();
+    loadPaymentMethods();
+  </script>
+</body>
+</html>

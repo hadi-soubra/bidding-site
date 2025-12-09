@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Item Details</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .item-details-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .item-images {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    .main-image {
+      width: 100%;
+      height: 400px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 3rem;
+    }
+
+    .thumbnail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .thumbnail {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border 0.3s;
+    }
+
+    .thumbnail:hover {
+      border-color: #667eea;
+    }
+
+    .thumbnail.active {
+      border-color: #667eea;
+    }
+
+    .item-info {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+    }
+
+    .item-info h1 {
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .item-meta {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .meta-badge {
+      background: #f0f0f0;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .price-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+
+    .current-price {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .bid-form {
+      margin: 20px 0;
+    }
+
+    .bid-input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .bid-input-group input {
+      flex: 1;
+      padding: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1.1rem;
+    }
+
+    .bid-input-group button {
+      padding: 15px 30px;
+      white-space: nowrap;
+    }
+
+    .description-section {
+      margin: 20px 0;
+    }
+
+    .bid-history {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-top: 30px;
+    }
+
+    .bid-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .bid-item:last-child {
+      border-bottom: none;
+    }
+
+    @media (max-width: 768px) {
+      .item-details-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <div>
+        <strong>🔍 Item Details</strong>
+      </div>
+      <div class="nav-links">
+        <a href="items.html">← Back to Browse</a>
+        <a href="#" id="dashboard-link"></a>
+      </div>
+    </nav>
+
+    <div id="item-content">
+      <div class="loading" style="text-align: center; padding: 50px; color: white;">
+        Loading item details...
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    const urlParams = new URLSearchParams(window.location.search);
+    const itemId = urlParams.get('id');
+
+    // Setup dashboard link
+    const dashboardLink = document.getElementById('dashboard-link');
+    if (token && role) {
+      dashboardLink.textContent = 'Dashboard';
+      dashboardLink.href = role === 'host' ? 'host-dashboard.html' : 'bidder-dashboard.html';
+    } else {
+      dashboardLink.textContent = 'Login';
+      dashboardLink.href = '../index.html';
+    }
+
+    if (!itemId) {
+      document.getElementById('item-content').innerHTML = 
+        '<p style="text-align: center; color: white;">Item not found</p>';
+    }
+
+    let currentItem = null;
+
+    // Load item details
+    async function loadItem() {
+      try {
+        const response = await fetch(`http://localhost:3000/api/items/${itemId}`);
+        const item = await response.json();
+        currentItem = item;
+        displayItem(item);
+      } catch (error) {
+        console.error('Error loading item:', error);
+        document.getElementById('item-content').innerHTML = 
+          '<p style="text-align: center; color: white;">Failed to load item</p>';
+      }
+    }
+
+    // Display item
+    function displayItem(item) {
+      const now = new Date();
+      const endTime = new Date(item.end_time);
+      const isEnded = endTime <= now;
+      const timeLeft = getTimeLeft(item.end_time);
+
+      const mainImage = item.images && item.images.length > 0
+        ? `<img src="http://localhost:3000/${item.images[0].image_path}" alt="${item.item_name}" class="main-image" id="main-image">`
+        : `<div class="main-image">📦</div>`;
+
+      const thumbnails = item.images && item.images.length > 1
+        ? `<div class="thumbnail-grid">
+            ${item.images.map((img, index) => `
+              <img src="http://localhost:3000/${img.image_path}" 
+                   alt="Thumbnail ${index + 1}" 
+                   class="thumbnail ${index === 0 ? 'active' : ''}"
+                   onclick="changeImage('http://localhost:3000/${img.image_path}', ${index})">
+            `).join('')}
+           </div>`
+        : '';
+
+      const bidForm = !isEnded && role === 'bidder'
+        ? `<div class="bid-form">
+            <div id="bid-message" style="display: none; padding: 10px; margin-bottom: 10px; border-radius: 6px;"></div>
+            <div class="bid-input-group">
+              <input type="number" id="bid-amount" placeholder="Enter your bid" 
+                     min="${parseFloat(item.current_price) + 1}" step="0.01">
+              <button onclick="placeBid()" class="btn btn-success">Place Bid</button>
+            </div>
+            <p style="font-size: 0.85rem; color: white; margin-top: 10px; opacity: 0.9;">
+              Minimum bid: $${(parseFloat(item.current_price) + 1).toFixed(2)}
+            </p>
+           </div>`
+        : isEnded
+        ? `<p style="color: white; font-size: 1.1rem; margin-top: 15px;">⏰ Auction has ended</p>`
+        : role === 'host'
+        ? `<p style="color: white; font-size: 1.1rem; margin-top: 15px;">🏪 You are the host of this item</p>`
+        : `<p style="color: white; font-size: 1.1rem; margin-top: 15px;">
+            <a href="bidder-login.html" style="color: white; text-decoration: underline;">Login</a> to place bids
+           </p>`;
+
+      document.getElementById('item-content').innerHTML = `
+        <div class="item-details-container">
+          <div class="item-images">
+            ${mainImage}
+            ${thumbnails}
+          </div>
+
+          <div class="item-info">
+            <h1>${item.item_name}</h1>
+            
+            <div class="item-meta">
+              <span class="meta-badge">📁 ${item.item_category}</span>
+              <span class="meta-badge">👤 ${item.host.host_name}</span>
+              <span class="meta-badge">${timeLeft}</span>
+            </div>
+
+            <div class="price-section">
+              <div style="font-size: 0.9rem; opacity: 0.9;">Current Price</div>
+              <div class="current-price" id="current-price">$${item.current_price}</div>
+              <div style="font-size: 0.9rem; opacity: 0.9;">
+                Starting bid: $${item.initial_price} • ${item.bids.length} bids
+              </div>
+              ${bidForm}
+            </div>
+
+            <div class="description-section">
+              <h3>Description</h3>
+              <p style="color: #666; line-height: 1.6;">${item.item_description}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bid-history">
+          <h3>Bid History (${item.bids.length})</h3>
+          <div id="bids-list">
+            ${item.bids.length > 0
+              ? item.bids.map(bid => `
+                  <div class="bid-item">
+                    <div>
+                      <strong>${bid.bidder_name}</strong>
+                      <div style="font-size: 0.85rem; color: #666;">
+                        ${new Date(bid.bid_time).toLocaleString()}
+                      </div>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #667eea;">
+                      $${bid.bid_amount}
+                    </div>
+                  </div>
+                `).join('')
+              : '<p style="text-align: center; color: #666;">No bids yet. Be the first!</p>'}
+          </div>
+        </div>
+      `;
+    }
+
+    // Change main image
+    window.changeImage = function(src, index) {
+      document.getElementById('main-image').src = src;
+      document.querySelectorAll('.thumbnail').forEach((thumb, i) => {
+        thumb.classList.toggle('active', i === index);
+      });
+    };
+
+    // Place bid
+    window.placeBid = async function() {
+      if (!token || role !== 'bidder') {
+        showBidMessage('Please login as a bidder to place bids', 'error');
+        return;
+      }
+
+      const bidAmount = parseFloat(document.getElementById('bid-amount').value);
+      const minBid = parseFloat(currentItem.current_price) + 1;
+
+      if (!bidAmount || bidAmount < minBid) {
+        showBidMessage(`Bid must be at least $${minBid.toFixed(2)}`, 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:3000/api/bids', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            item_id: itemId,
+            bid_amount: bidAmount
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showBidMessage('Bid placed successfully! 🎉', 'success');
+          document.getElementById('bid-amount').value = '';
+          // Reload item to show new bid
+          setTimeout(loadItem, 1000);
+        } else {
+          showBidMessage(result.error, 'error');
+        }
+      } catch (error) {
+        showBidMessage('Failed to place bid', 'error');
+      }
+    };
+
+    // Show bid message
+    function showBidMessage(message, type) {
+      const msgDiv = document.getElementById('bid-message');
+      msgDiv.textContent = message;
+      msgDiv.style.display = 'block';
+      msgDiv.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+      msgDiv.style.color = type === 'success' ? '#155724' : '#721c24';
+
+      setTimeout(() => {
+        msgDiv.style.display = 'none';
+      }, 3000);
+    }
+
+    // Calculate time left
+    function getTimeLeft(endTime) {
+      const now = new Date();
+      const end = new Date(endTime);
+      const diff = end - now;
+
+      if (diff <= 0) return '⏰ Ended';
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) return `⏰ ${days}d ${hours}h left`;
+      if (hours > 0) return `⏰ ${hours}h ${minutes}m left`;
+      if (minutes > 0) return `⏰ ${minutes}m ${seconds}s left`;
+      return `⏰ ${seconds}s left`;
+    }
+
+    // WebSocket for real-time updates
+    const socket = io('http://localhost:3000');
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket');
+    });
+
+    socket.on('new_bid', (data) => {
+      if (data.item_id == itemId) {
+        console.log('New bid received:', data);
+        loadItem(); // Reload to show new bid
+      }
+    });
+
+    socket.on('auction_ended', (data) => {
+      if (data.item_id == itemId) {
+        console.log('Auction ended:', data);
+        loadItem(); // Reload to show ended status
+      }
+    });
+
+    // Load item on page load
+    loadItem();
+
+    // Auto-refresh countdown every 10 seconds
+    setInterval(() => {
+      if (currentItem) {
+        const timeLeftEl = document.querySelector('.item-meta .meta-badge:last-child');
+        if (timeLeftEl) {
+          timeLeftEl.textContent = getTimeLeft(currentItem.end_time);
+        }
+      }
+    }, 10000);
+  </script>
+</body>
+</html>

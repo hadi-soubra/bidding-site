@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bidder Dashboard</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .action-card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .action-card h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+
+    .action-card p {
+      color: #666;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <div>
+        <strong>🛍️ Bidder Dashboard</strong>
+      </div>
+      <div class="nav-links">
+        <a href="#" id="logout">Logout</a>
+      </div>
+    </nav>
+
+    <div class="dashboard">
+      <div class="dashboard-header">
+        <h2>Welcome, <span id="bidder-name">Loading...</span>! 👋</h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Items Won</div>
+          <div class="stat-number" id="won-count">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Total Spent</div>
+          <div class="stat-number" id="total-spent">$0</div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 20px;">Quick Actions</h3>
+      <div class="quick-actions">
+        <div class="action-card">
+          <h3>🔍 Browse Auctions</h3>
+          <p>Find items to bid on</p>
+          <a href="items.html" class="btn btn-primary" style="width: 100%;">Browse Items</a>
+        </div>
+
+        <div class="action-card">
+          <h3>🏆 My Wins</h3>
+          <p>View items you've won</p>
+          <a href="#" id="view-my-wins" class="btn btn-secondary" style="width: 100%;">View Wins</a>
+        </div>
+      </div>
+
+      <div id="won-items-section" style="display: none;">
+        <h3 style="margin: 30px 0 20px 0;">Items You've Won</h3>
+        <div id="won-items-grid" class="items-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check authentication
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (!token || role !== 'bidder') {
+      window.location.href = 'bidder-login.html';
+    }
+
+    // Logout
+    document.getElementById('logout').addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.clear();
+      window.location.href = '../index.html';
+    });
+
+    // Load profile
+    // Load profile
+async function loadProfile() {
+  try {
+    // Load won items from profile
+    const profileResponse = await fetch('http://localhost:3000/api/bidder/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!profileResponse.ok) throw new Error('Unauthorized');
+
+    const profileData = await profileResponse.json();
+    document.getElementById('bidder-name').textContent = profileData.bidder_name;
+
+    // Load orders
+    const ordersResponse = await fetch('http://localhost:3000/api/bidder/orders', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const orders = await ordersResponse.json();
+    window.allOrders = orders; // Store for displayWins to access
+
+    // Calculate stats
+    const pendingOrders = orders.filter(o => o.order_status === 'pending_checkout');
+    const completedOrders = orders.filter(o => o.order_status !== 'pending_checkout');
+
+    document.getElementById('won-count').textContent = profileData.won_items.length;
+
+    const totalSpent = completedOrders.reduce((sum, order) => {
+      const shipping = order.shipping_cost || 0;
+      return sum + parseFloat(order.final_price) + parseFloat(shipping);
+    }, 0);
+    document.getElementById('total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+
+    // Display won items (with checkout buttons if needed)
+    displayWins(profileData.won_items);
+
+  } catch (error) {
+    console.error('Error:', error);
+    localStorage.clear();
+    window.location.href = 'bidder-login.html';
+  }
+}
+
+    // View wins
+    document.getElementById('view-my-wins').addEventListener('click', (e) => {
+      e.preventDefault();
+      const section = document.getElementById('won-items-section');
+      
+      if (section.style.display === 'none') {
+        section.style.display = 'block';
+        displayWins(window.wonItems);
+        e.target.textContent = 'Hide Wins';
+      } else {
+        section.style.display = 'none';
+        e.target.textContent = 'View Wins';
+      }
+    });
+
+    // Display wins
+    // Display wins
+function displayWins(items) {
+  const grid = document.getElementById('won-items-grid');
+
+  if (items.length === 0) {
+    grid.innerHTML = '<p style="text-align: center; color: #666;">You haven\'t won any items yet. <a href="items.html">Start bidding!</a></p>';
+    return;
+  }
+
+  grid.innerHTML = items.map(item => {
+    // Check if this item has a pending order
+    const hasPendingOrder = window.allOrders && window.allOrders.find(
+      o => o.item_id === item.item_id && o.order_status === 'pending_checkout'
+    );
+
+    return `
+      <div class="item-card" ${hasPendingOrder ? 'style="border: 3px solid #e67e22;"' : ''}>
+        <div class="item-image" style="display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #999;">
+          📦
+        </div>
+        <div class="item-content">
+          <h3>${item.item_name}</h3>
+          <p style="color: #666; font-size: 0.9rem; margin: 5px 0;">${item.item_category}</p>
+          <div class="item-price">Won at: $${item.current_price}</div>
+          ${hasPendingOrder 
+            ? `<span class="item-status" style="background: #e67e22; color: white;">NEEDS CHECKOUT</span>
+               <a href="checkout.html?order_id=${hasPendingOrder.order_id}" class="btn btn-success" style="width: 100%; margin-top: 15px; text-align: center;">Complete Checkout</a>`
+            : `<span class="item-status status-sold">COMPLETED</span>
+               <a href="item-details.html?id=${item.item_id}" class="btn btn-secondary" style="width: 100%; margin-top: 15px; text-align: center;">View Details</a>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+    // Load on page load
+    loadProfile();
+  </script>
+</body>
+</html>

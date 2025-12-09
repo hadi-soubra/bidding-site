@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Items</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="container">
+<nav>
+  <div>
+    <strong>🔍 Browse Auctions</strong>
+  </div>
+  <div class="nav-links">
+    <a href="../index.html">Home</a>
+    <a href="#" id="dashboard-link"></a>
+    <a href="#" id="settings-link" style="display: none;">Settings</a>
+  </div>
+</nav>
+
+    <div class="dashboard">
+      <h2 style="margin-bottom: 20px;">All Available Auctions</h2>
+      <div id="items-grid" class="items-grid">
+        <div class="loading">Loading items...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+
+    // Load and display items
+    async function loadItems() {
+      try {
+        const response = await fetch('http://localhost:3000/api/items');
+        const items = await response.json();
+        displayItems(items);
+      } catch (error) {
+        console.error('Error loading items:', error);
+        document.getElementById('items-grid').innerHTML = 
+          '<p style="text-align: center; color: white;">Failed to load items</p>';
+      }
+    }
+
+    // Display items
+    function displayItems(items) {
+      const grid = document.getElementById('items-grid');
+
+      if (items.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: white;">No items available</p>';
+        return;
+      }
+
+      // Only show available items (not ended)
+      const availableItems = items.filter(item => {
+        const now = new Date();
+        const endTime = new Date(item.end_time);
+        return endTime > now;
+      });
+
+      if (availableItems.length === 0) {
+        grid.innerHTML = '<p style="text-align: center; color: white;">No active auctions at the moment</p>';
+        return;
+      }
+
+      grid.innerHTML = availableItems.map(item => {
+        const timeLeft = getTimeLeft(item.end_time);
+        const imageSrc = item.images && item.images.length > 0 
+          ? `http://localhost:3000/${item.images[0].image_path}`
+          : null;
+
+        return `
+          <div class="item-card">
+            ${imageSrc 
+              ? `<img src="${imageSrc}" alt="${item.item_name}" class="item-image">`
+              : `<div class="item-image" style="display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #999;">📦 No Image</div>`
+            }
+            <div class="item-content">
+              <h3>${item.item_name}</h3>
+              <p style="color: #666; font-size: 0.9rem; margin: 5px 0;">${item.item_category}</p>
+              <div class="item-price">$${item.current_price}</div>
+              <p style="font-size: 0.85rem; color: #666; margin: 5px 0;">
+                Starting: $${item.initial_price}
+              </p>
+              <span class="item-status status-available">
+                AVAILABLE
+              </span>
+              <p style="font-size: 0.85rem; color: #666; margin-top: 10px;">
+                ${timeLeft} • ${item.bid_count || 0} bids
+              </p>
+              <a href="item-details.html?id=${item.item_id}" class="btn btn-primary" style="width: 100%; margin-top: 10px; text-align: center;">View & Bid</a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Calculate time left
+    function getTimeLeft(endTime) {
+      const now = new Date();
+      const end = new Date(endTime);
+      const diff = end - now;
+
+      if (diff <= 0) return '⏰ Ended';
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) return `⏰ ${days}d ${hours}h left`;
+      if (hours > 0) return `⏰ ${hours}h ${minutes}m left`;
+      if (minutes > 0) return `⏰ ${minutes}m ${seconds}s left`;
+      return `⏰ ${seconds}s left`;
+    }
+    // Setup dashboard link
+    const dashboardLink = document.getElementById('dashboard-link');
+    if (token && role) {
+    dashboardLink.textContent = 'Dashboard';
+    dashboardLink.href = role === 'host' ? 'host-dashboard.html' : 'bidder-dashboard.html';
+    } else {
+    dashboardLink.textContent = 'Login';
+    dashboardLink.href = '../index.html';
+    }
+
+    // Setup settings link - ONLY FOR BIDDERS
+    const settingsLink = document.getElementById('settings-link');
+    if (settingsLink && token && role === 'bidder') {
+    settingsLink.style.display = 'inline';
+    settingsLink.href = 'bidder-settings.html';
+    }
+
+    // Load items on page load
+    loadItems();
+
+    // Auto-refresh every 10 seconds to keep countdown updated
+    setInterval(loadItems, 10000);
+  </script>
+</body>
+</html>

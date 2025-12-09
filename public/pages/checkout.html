@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .checkout-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .order-summary {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .order-item {
+      display: flex;
+      gap: 20px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #eee;
+      margin-bottom: 20px;
+    }
+
+    .item-image-small {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f0f0f0;
+    }
+
+    .selection-section {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .selection-section h3 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+
+    .option-card {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .option-card:hover {
+      border-color: #667eea;
+    }
+
+    .option-card.selected {
+      border-color: #667eea;
+      background: #f0f2ff;
+    }
+
+    .option-card input[type="radio"] {
+      margin-right: 10px;
+    }
+
+    .total-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .total-line {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+
+    .total-line.grand-total {
+      font-size: 1.5rem;
+      font-weight: bold;
+      padding-top: 15px;
+      border-top: 2px solid rgba(255,255,255,0.3);
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <div>
+        <strong>🛒 Checkout</strong>
+      </div>
+      <div class="nav-links">
+        <a href="bidder-dashboard.html">← Back to Dashboard</a>
+      </div>
+    </nav>
+
+    <div class="checkout-container">
+      <div id="checkout-content">
+        <div class="loading" style="text-align: center; padding: 50px; color: white;">
+          Loading order...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('order_id');
+
+    if (!token || role !== 'bidder') {
+      window.location.href = 'bidder-login.html';
+    }
+
+    if (!orderId) {
+      alert('No order specified');
+      window.location.href = 'bidder-dashboard.html';
+    }
+
+    let selectedPayment = null;
+    let selectedAddress = null;
+    let selectedShipping = null;
+
+    async function loadCheckout() {
+      try {
+        // Load order
+        const ordersResponse = await fetch('http://localhost:3000/api/bidder/orders', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const orders = await ordersResponse.json();
+        const order = orders.find(o => o.order_id == orderId);
+
+        if (!order) {
+          alert('Order not found');
+          window.location.href = 'bidder-dashboard.html';
+          return;
+        }
+
+        if (order.order_status !== 'pending_checkout') {
+          alert('Order already completed');
+          window.location.href = 'bidder-dashboard.html';
+          return;
+        }
+
+        // Load payment methods
+        const paymentsResponse = await fetch('http://localhost:3000/api/bidder/payment-methods', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const payments = await paymentsResponse.json();
+
+        // Load addresses
+        const addressesResponse = await fetch('http://localhost:3000/api/bidder/addresses', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const addresses = await addressesResponse.json();
+
+        // Load shipping methods
+        const shippingResponse = await fetch('http://localhost:3000/api/shipping-methods');
+        const shippingMethods = await shippingResponse.json();
+
+        displayCheckout(order, payments, addresses, shippingMethods);
+
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to load checkout');
+      }
+    }
+
+    function displayCheckout(order, payments, addresses, shippingMethods) {
+      document.getElementById('checkout-content').innerHTML = `
+        <div class="order-summary">
+          <h2>Order Summary</h2>
+          <div class="order-item">
+            <div class="item-image-small" style="display: flex; align-items: center; justify-content: center; color: #999;">
+              📦
+            </div>
+            <div style="flex: 1;">
+              <h3>${order.item_name}</h3>
+              <p style="color: #666;">${order.item_category}</p>
+              <p style="color: #666; font-size: 0.9rem; margin-top: 5px;">Sold by: ${order.host_name}</p>
+            </div>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;">
+              $${order.final_price}
+            </div>
+          </div>
+        </div>
+
+        ${payments.length === 0 ? `
+          <div class="selection-section">
+            <p style="color: #666; text-align: center;">
+              No payment methods saved. <a href="bidder-settings.html">Add one in Settings</a>
+            </p>
+          </div>
+        ` : `
+          <div class="selection-section">
+            <h3>💳 Select Payment Method</h3>
+            ${payments.map(p => `
+              <label class="option-card" onclick="selectPayment(${p.payment_id})">
+                <input type="radio" name="payment" value="${p.payment_id}">
+                <strong>${p.payment_type}</strong>
+                ${p.card_brand ? ' - ' + p.card_brand : ''}
+                ${p.card_last_four ? ' ****' + p.card_last_four : ''}
+                ${p.is_default ? ' <span style="color: #667eea;">(Default)</span>' : ''}
+              </label>
+            `).join('')}
+          </div>
+        `}
+
+        ${addresses.length === 0 ? `
+          <div class="selection-section">
+            <p style="color: #666; text-align: center;">
+              No addresses saved. <a href="bidder-settings.html">Add one in Settings</a>
+            </p>
+          </div>
+        ` : `
+          <div class="selection-section">
+            <h3>📍 Select Shipping Address</h3>
+            ${addresses.map(a => `
+              <label class="option-card" onclick="selectAddress(${a.address_id})">
+                <input type="radio" name="address" value="${a.address_id}">
+                <strong>${a.address_line1}</strong><br>
+                ${a.address_line2 ? a.address_line2 + '<br>' : ''}
+                ${a.city}, ${a.state} ${a.postal_code}<br>
+                ${a.country}
+                ${a.is_default ? ' <span style="color: #667eea;">(Default)</span>' : ''}
+              </label>
+            `).join('')}
+          </div>
+        `}
+
+        <div class="selection-section">
+          <h3>🚚 Select Shipping Method</h3>
+          ${shippingMethods.map(s => `
+            <label class="option-card" onclick="selectShipping(${s.shipping_id}, ${s.shipping_cost})">
+              <input type="radio" name="shipping" value="${s.shipping_id}">
+              <strong>${s.shipping_method}</strong> - $${s.shipping_cost}
+              ${s.estimated_delivery_days ? ` (${s.estimated_delivery_days} days)` : ''}
+            </label>
+          `).join('')}
+        </div>
+
+        <div class="total-section">
+          <div class="total-line">
+            <span>Item Price:</span>
+            <span>$${order.final_price}</span>
+          </div>
+          <div class="total-line">
+            <span>Shipping:</span>
+            <span id="shipping-cost">$0.00</span>
+          </div>
+          <div class="total-line grand-total">
+            <span>Total:</span>
+            <span id="grand-total">$${order.final_price}</span>
+          </div>
+        </div>
+
+        <button onclick="completeCheckout()" class="btn btn-success" style="width: 100%; padding: 20px; font-size: 1.2rem;" id="checkout-btn" disabled>
+          Complete Checkout
+        </button>
+      `;
+
+      // Auto-select defaults
+      const defaultPayment = payments.find(p => p.is_default);
+      const defaultAddress = addresses.find(a => a.is_default);
+      const standardShipping = shippingMethods[0];
+
+      if (defaultPayment) selectPayment(defaultPayment.payment_id);
+      if (defaultAddress) selectAddress(defaultAddress.address_id);
+      if (standardShipping) selectShipping(standardShipping.shipping_id, standardShipping.shipping_cost);
+    }
+
+    window.selectPayment = function(id) {
+      selectedPayment = id;
+      document.querySelectorAll('input[name="payment"]').forEach(input => {
+        input.parentElement.classList.toggle('selected', input.value == id);
+      });
+      checkComplete();
+    };
+
+    window.selectAddress = function(id) {
+      selectedAddress = id;
+      document.querySelectorAll('input[name="address"]').forEach(input => {
+        input.parentElement.classList.toggle('selected', input.value == id);
+      });
+      checkComplete();
+    };
+
+    window.selectShipping = function(id, cost) {
+      selectedShipping = id;
+      document.querySelectorAll('input[name="shipping"]').forEach(input => {
+        input.parentElement.classList.toggle('selected', input.value == id);
+      });
+      
+      // Update totals
+      const itemPrice = parseFloat(document.querySelector('.order-item .item-content + div').textContent.replace('$', ''));
+      document.getElementById('shipping-cost').textContent = `$${cost.toFixed(2)}`;
+      document.getElementById('grand-total').textContent = `$${(itemPrice + cost).toFixed(2)}`;
+      
+      checkComplete();
+    };
+
+    function checkComplete() {
+      const btn = document.getElementById('checkout-btn');
+      if (selectedPayment && selectedAddress && selectedShipping) {
+        btn.disabled = false;
+      }
+    }
+
+    window.completeCheckout = async function() {
+      if (!selectedPayment || !selectedAddress || !selectedShipping) {
+        alert('Please select payment, address, and shipping method');
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/orders/${orderId}/checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            payment_id: selectedPayment,
+            address_id: selectedAddress,
+            shipping_id: selectedShipping
+          })
+        });
+
+        if (response.ok) {
+          alert('✅ Checkout completed! Your order has been placed.');
+          window.location.href = 'bidder-dashboard.html';
+        } else {
+          const error = await response.json();
+          alert(error.error);
+        }
+      } catch (error) {
+        alert('Checkout failed. Please try again.');
+      }
+    };
+
+    loadCheckout();
+  </script>
+</body>
+</html>

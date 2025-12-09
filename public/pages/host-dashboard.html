@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Dashboard</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+<nav>
+  <div>
+    <strong>🏪 Host Dashboard</strong>
+  </div>
+  <div class="nav-links">
+    <a href="create-item.html">+ Create Item</a>
+    <a href="items.html">Browse All</a>
+    <a href="#" id="logout">Logout</a>
+  </div>
+</nav>
+
+    <div class="dashboard">
+      <div class="dashboard-header">
+        <h2>Welcome, <span id="host-name">Loading...</span>! 👋</h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Items Listed</div>
+          <div class="stat-number" id="total-items">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Currently Available</div>
+          <div class="stat-number" id="available-items">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Ended Auctions</div>
+          <div class="stat-number" id="ended-items">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Total Bids Received</div>
+          <div class="stat-number" id="total-bids">0</div>
+        </div>
+      </div>
+
+      <h3 style="margin: 30px 0 20px 0;">My Listed Items</h3>
+      <div id="items-grid" class="items-grid">
+        <div class="loading">Loading your items...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check authentication - MUST BE FIRST
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (!token || role !== 'host') {
+      window.location.href = 'host-login.html';
+    }
+
+    // Logout
+    document.getElementById('logout').addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.clear();
+      window.location.href = '../index.html';
+    });
+
+    // Load profile and items
+   // Load profile and items
+async function loadProfile() {
+  try {
+    const response = await fetch('http://localhost:3000/api/host/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) throw new Error('Unauthorized');
+
+    const data = await response.json();
+    document.getElementById('host-name').textContent = data.host_name;
+
+    // Calculate stats
+    const items = data.items;
+    const now = new Date();
+    
+    const availableItems = items.filter(item => new Date(item.end_time) > now);
+    const endedItems = items.filter(item => new Date(item.end_time) <= now);
+    const totalBids = items.reduce((sum, item) => sum + (item.bid_count || 0), 0);
+
+    document.getElementById('total-items').textContent = items.length;
+    document.getElementById('available-items').textContent = availableItems.length;
+    document.getElementById('ended-items').textContent = endedItems.length;
+    document.getElementById('total-bids').textContent = totalBids;
+
+    // Display items
+    displayItems(items);
+
+  } catch (error) {
+    console.error('Error:', error);
+    localStorage.clear();
+    window.location.href = 'host-login.html';
+  }
+}
+
+    // Display items
+   // Display items
+function displayItems(items) {
+  const grid = document.getElementById('items-grid');
+
+  if (items.length === 0) {
+    grid.innerHTML = '<p style="text-align: center; color: #666;">You haven\'t listed any items yet. <a href="create-item.html">Create your first item!</a></p>';
+    return;
+  }
+
+  grid.innerHTML = items.map(item => {
+    const now = new Date();
+    const endTime = new Date(item.end_time);
+    const isEnded = endTime <= now;
+    const displayStatus = isEnded ? 'ended' : 'available';
+    const statusText = isEnded ? 'ENDED' : 'AVAILABLE';
+    const timeLeft = getTimeLeft(item.end_time);
+
+    // Add image support
+    const imageSrc = item.images && item.images.length > 0 
+      ? `http://localhost:3000/${item.images[0].image_path}`
+      : null;
+
+    return `
+      <div class="item-card">
+        ${imageSrc 
+          ? `<img src="${imageSrc}" alt="${item.item_name}" class="item-image">`
+          : `<div class="item-image" style="display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #999;">📦</div>`
+        }
+        <div class="item-content">
+          <h3>${item.item_name}</h3>
+          <p style="color: #666; font-size: 0.9rem; margin: 5px 0;">${item.item_category}</p>
+          <div class="item-price">$${item.current_price}</div>
+          <p style="font-size: 0.85rem; color: #666; margin: 5px 0;">
+            Starting: $${item.initial_price}
+          </p>
+          <span class="item-status status-${displayStatus}">
+            ${statusText}
+          </span>
+          <p style="font-size: 0.85rem; color: #666; margin-top: 10px;">
+            ${timeLeft} • ${item.bid_count || 0} bids
+          </p>
+          <a href="item-details.html?id=${item.item_id}" class="btn btn-secondary" style="width: 100%; margin-top: 10px; text-align: center;">View Details</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+    // Calculate time left
+// Calculate time left
+function getTimeLeft(endTime) {
+  const now = new Date();
+  const end = new Date(endTime);
+  const diff = end - now;
+
+  if (diff <= 0) return '⏰ Ended';
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  if (days > 0) return `⏰ ${days}d ${hours}h left`;
+  if (hours > 0) return `⏰ ${hours}h ${minutes}m left`;
+  if (minutes > 0) return `⏰ ${minutes}m ${seconds}s left`;
+  return `⏰ ${seconds}s left`;
+}
+
+    // Load on page load
+    loadProfile();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadProfile, 30000);
+  </script>
+</body>
+</html>
