@@ -69,15 +69,6 @@ async function initDatabase() {
       FOREIGN KEY (bidder_id) REFERENCES BIDDER(bidder_id) ON DELETE CASCADE
     );
 
-    -- SHIPPING table
-    CREATE TABLE IF NOT EXISTS SHIPPING (
-      shipping_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      shipping_method TEXT NOT NULL,
-      shipping_cost REAL NOT NULL,
-      estimated_delivery_days INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
     -- Shipping_address table
     CREATE TABLE IF NOT EXISTS Shipping_address (
       address_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,24 +99,22 @@ async function initDatabase() {
     );
 
     -- Orders table
-    CREATE TABLE IF NOT EXISTS Orders (
-      order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      item_id INTEGER NOT NULL,
-      bidder_id INTEGER NOT NULL,
-      host_id INTEGER NOT NULL,
-      final_price REAL NOT NULL,
-      payment_id INTEGER,
-      address_id INTEGER,
-      shipping_id INTEGER,
-      order_status TEXT DEFAULT 'pending',
-      order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (item_id) REFERENCES ITEMS(item_id),
-      FOREIGN KEY (bidder_id) REFERENCES BIDDER(bidder_id),
-      FOREIGN KEY (host_id) REFERENCES HOST(host_id),
-      FOREIGN KEY (payment_id) REFERENCES Payment_method(payment_id),
-      FOREIGN KEY (address_id) REFERENCES Shipping_address(address_id),
-      FOREIGN KEY (shipping_id) REFERENCES SHIPPING(shipping_id)
-    );
+CREATE TABLE IF NOT EXISTS Orders (
+  order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL,
+  bidder_id INTEGER NOT NULL,
+  host_id INTEGER NOT NULL,
+  final_price REAL NOT NULL,
+  payment_id INTEGER,
+  address_id INTEGER,
+  order_status TEXT DEFAULT 'pending',
+  order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (item_id) REFERENCES ITEMS(item_id),
+  FOREIGN KEY (bidder_id) REFERENCES BIDDER(bidder_id),
+  FOREIGN KEY (host_id) REFERENCES HOST(host_id),
+  FOREIGN KEY (payment_id) REFERENCES Payment_method(payment_id),
+  FOREIGN KEY (address_id) REFERENCES Shipping_address(address_id)
+);
 
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_items_host ON ITEMS(host_id);

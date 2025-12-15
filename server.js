@@ -111,22 +111,24 @@ function authenticateToken(req, res, next) {
 // ============================================
 
 async function checkExpiredAuctions() {
+  console.log('🕐 Checking for expired auctions...');
+  
   try {
-    
-    // Use localtime for comparison
+    // Find expired items - MAKE SURE TO SELECT host_id!
     const expiredItems = await db.all(
-      `SELECT item_id, item_name, end_time, 
-              datetime(end_time) as end_dt,
+      `SELECT i.item_id, i.item_name, i.end_time, i.host_id, i.item_status,
+              datetime(i.end_time) as end_dt,
               datetime('now', 'localtime') as now_dt
-       FROM ITEMS 
-       WHERE datetime(end_time) <= datetime('now', 'localtime')
-       AND item_status = 'available'`
+       FROM ITEMS i
+       WHERE datetime(i.end_time) <= datetime('now', 'localtime')
+       AND i.item_status = 'available'`
     );
 
-
-    let expiredCount = 0;
+    console.log(`📦 Found ${expiredItems.length} expired items`);
 
     for (let item of expiredItems) {
+      console.log(`\n⏰ Processing item ${item.item_id}:`);
+      console.log('   Item data:', item);  // This will show if host_id is there
       
       // Get highest bid
       const highestBid = await db.get(
@@ -138,40 +140,67 @@ async function checkExpiredAuctions() {
         [item.item_id]
       );
 
+      console.log('   Highest bid:', highestBid);
 
-    if (highestBid) {
-      // Update item with winner
-      await db.run(
-        `UPDATE ITEMS 
-        SET item_status = 'sold', 
-            bidder_id = ?,
-            current_price = ?
-        WHERE item_id = ?`,
-        [highestBid.bidder_id, highestBid.bid_amount, item.item_id]
-      );
+      if (highestBid) {
+        console.log('   → Has winner, creating order...');
+        console.log('   → Data:', {
+          item_id: item.item_id,
+          bidder_id: highestBid.bidder_id,
+          host_id: item.host_id,
+          final_price: highestBid.bid_amount
+        });
+        
+        try {
+          // Update item
+          await db.run(
+            `UPDATE ITEMS 
+             SET item_status = 'sold', 
+                 bidder_id = ?,
+                 current_price = ?
+             WHERE item_id = ?`,
+            [highestBid.bidder_id, highestBid.bid_amount, item.item_id]
+          );
+          console.log('   ✅ Item updated to sold');
 
-      // CREATE ORDER automatically
-      await db.run(
-        `INSERT INTO Orders (item_id, bidder_id, host_id, final_price, order_status)
-        VALUES (?, ?, ?, ?, 'pending_checkout')`,
-        [item.item_id, highestBid.bidder_id, item.host_id, highestBid.bid_amount]
-      );
+        } catch (updateError) {
+          console.error('   ❌ Failed to update item:', updateError);
+        }
 
-      console.log(`✅ Item ${item.item_id} marked as SOLD - Order created`);
-
-      io.emit('auction_ended', {
-        item_id: item.item_id,
-        winner_id: highestBid.bidder_id,
-        final_price: highestBid.bid_amount
-      });
-    } else {
-        // No bids, mark as ended
+        // CREATE ORDER
+        try {
+          console.log('   → Attempting to create order...');
+          
+          const orderResult = await db.run(
+            `INSERT INTO Orders (item_id, bidder_id, host_id, final_price, order_status)
+             VALUES (?, ?, ?, ?, ?)`,
+            [item.item_id, highestBid.bidder_id, item.host_id, highestBid.bid_amount, 'pending_checkout']
+          );
+          
+          console.log('   ✅✅✅ ORDER CREATED! ID:', orderResult.lastID);
+          
+          io.emit('auction_ended', {
+            item_id: item.item_id,
+            winner_id: highestBid.bidder_id,
+            final_price: highestBid.bid_amount,
+            order_id: orderResult.lastID
+          });
+          
+        } catch (orderError) {
+          console.error('   ❌❌❌ FAILED TO CREATE ORDER!');
+          console.error('   Error:', orderError.message);
+        }
+        
+      } else {
+        // No bids
+        console.log('   → No bids, marking as ended');
+        
         await db.run(
           `UPDATE ITEMS SET item_status = 'ended' WHERE item_id = ?`,
           [item.item_id]
         );
-
-        console.log(`✅ Item ${item.item_id} marked as ENDED (no bids)`);
+        
+        console.log('   ✅ Item marked as ENDED');
 
         io.emit('auction_ended', {
           item_id: item.item_id,
@@ -179,12 +208,13 @@ async function checkExpiredAuctions() {
           final_price: null
         });
       }
-
-      expiredCount++;
     }
 
-    return expiredCount;
+    console.log(`\n✅ Processed ${expiredItems.length} expired items\n`);
+    return expiredItems.length;
+    
   } catch (error) {
+    console.error('❌ Error in checkExpiredAuctions:', error);
     return 0;
   }
 }
@@ -844,48 +874,9 @@ app.delete('/api/bidder/payment-methods/:id', authenticate, async (req, res) => 
   }
 });
 
-// ==================== SHIPPING OPTIONS ROUTES ====================
-
-// Get all shipping methods (public)
-app.get('/api/shipping-methods', async (req, res) => {
-  try {
-    const methods = await db.all('SELECT * FROM SHIPPING ORDER BY shipping_cost ASC');
-    res.json(methods);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add shipping method (HOST only - for now just seed some data)
-app.post('/api/shipping-methods', authenticate, async (req, res) => {
-  try {
-    if (req.user.role !== 'host') {
-      return res.status(403).json({ error: 'Only hosts can add shipping methods' });
-    }
-
-    const { shipping_method, shipping_cost, estimated_delivery_days } = req.body;
-
-    if (!shipping_method || !shipping_cost) {
-      return res.status(400).json({ error: 'Shipping method and cost are required' });
-    }
-
-    const result = await db.run(
-      'INSERT INTO SHIPPING (shipping_method, shipping_cost, estimated_delivery_days) VALUES (?, ?, ?)',
-      [shipping_method, shipping_cost, estimated_delivery_days || null]
-    );
-
-    res.status(201).json({
-      message: 'Shipping method added successfully',
-      shipping_id: result.lastID
-    });
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ==================== ORDER ROUTES ====================
 
+// Get bidder's orders (won items needing checkout)
 // Get bidder's orders (won items needing checkout)
 app.get('/api/bidder/orders', authenticate, async (req, res) => {
   try {
@@ -897,14 +888,12 @@ app.get('/api/bidder/orders', authenticate, async (req, res) => {
       `SELECT o.*, i.item_name, i.item_description, i.item_category,
               h.host_name, h.host_email,
               p.payment_type, p.card_last_four, p.card_brand,
-              a.address_line1, a.city, a.state, a.postal_code, a.country,
-              s.shipping_method, s.shipping_cost, s.estimated_delivery_days
+              a.address_line1, a.city, a.state, a.postal_code, a.country
        FROM Orders o
        JOIN ITEMS i ON o.item_id = i.item_id
        JOIN HOST h ON o.host_id = h.host_id
        LEFT JOIN Payment_method p ON o.payment_id = p.payment_id
        LEFT JOIN Shipping_address a ON o.address_id = a.address_id
-       LEFT JOIN SHIPPING s ON o.shipping_id = s.shipping_id
        WHERE o.bidder_id = ?
        ORDER BY o.order_date DESC`,
       [req.user.id]
@@ -913,6 +902,7 @@ app.get('/api/bidder/orders', authenticate, async (req, res) => {
     res.json(orders);
 
   } catch (error) {
+    console.error('Error loading bidder orders:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -924,10 +914,10 @@ app.post('/api/orders/:id/checkout', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Only bidders can checkout' });
     }
 
-    const { payment_id, address_id, shipping_id } = req.body;
+    const { payment_id, address_id } = req.body;
 
-    if (!payment_id || !address_id || !shipping_id) {
-      return res.status(400).json({ error: 'Payment method, shipping address, and shipping method are required' });
+    if (!payment_id || !address_id) {
+      return res.status(400).json({ error: 'Payment method and shipping address are required' });
     }
 
     // Verify order belongs to this bidder
@@ -941,12 +931,12 @@ app.post('/api/orders/:id/checkout', authenticate, async (req, res) => {
     }
 
     // Update order with payment and shipping info
-    await db.run(
-      `UPDATE Orders 
-       SET payment_id = ?, address_id = ?, shipping_id = ?, order_status = 'paid'
-       WHERE order_id = ?`,
-      [payment_id, address_id, shipping_id, req.params.id]
-    );
+await db.run(
+  `UPDATE Orders 
+   SET payment_id = ?, address_id = ?, order_status = 'paid'
+   WHERE order_id = ?`,
+  [payment_id, address_id, req.params.id]
+);
 
     res.json({ message: 'Checkout completed successfully' });
 
@@ -965,13 +955,11 @@ app.get('/api/host/orders', authenticate, async (req, res) => {
     const orders = await db.all(
       `SELECT o.*, i.item_name, i.item_description,
               b.bidder_name, b.bidder_email,
-              a.address_line1, a.address_line2, a.city, a.state, a.postal_code, a.country,
-              s.shipping_method, s.shipping_cost, s.estimated_delivery_days
+              a.address_line1, a.address_line2, a.city, a.state, a.postal_code, a.country
        FROM Orders o
        JOIN ITEMS i ON o.item_id = i.item_id
        JOIN BIDDER b ON o.bidder_id = b.bidder_id
        LEFT JOIN Shipping_address a ON o.address_id = a.address_id
-       LEFT JOIN SHIPPING s ON o.shipping_id = s.shipping_id
        WHERE o.host_id = ?
        ORDER BY o.order_date DESC`,
       [req.user.id]
@@ -980,6 +968,7 @@ app.get('/api/host/orders', authenticate, async (req, res) => {
     res.json(orders);
 
   } catch (error) {
+    console.error('Error loading host orders:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1050,4 +1039,49 @@ server.listen(PORT, () => {
   console.log(`   POST /api/bids (real-time)`);
   console.log(`   GET  /api/items/:id/bids`);
   console.log(`   POST /api/auctions/check-expired`);
+});
+
+
+// DEBUG: Test order creation
+app.get('/api/debug/create-order', async (req, res) => {
+  try {
+    console.log('🧪 Testing order creation...');
+    
+    // Get a sold item
+    const item = await db.get(
+      'SELECT * FROM ITEMS WHERE item_status = "sold" LIMIT 1'
+    );
+    
+    if (!item) {
+      return res.json({ error: 'No sold items found' });
+    }
+    
+    console.log('Item:', item);
+    
+    // Try to create order
+    const orderResult = await db.run(
+      `INSERT INTO Orders (item_id, bidder_id, host_id, final_price, order_status)
+       VALUES (?, ?, ?, ?, ?)`,
+      [item.item_id, item.bidder_id, item.host_id, item.current_price, 'pending_checkout']
+    );
+    
+    console.log('Order created:', orderResult.lastID);
+    
+    // Verify
+    const order = await db.get('SELECT * FROM Orders WHERE order_id = ?', [orderResult.lastID]);
+    
+    res.json({
+      success: true,
+      order_id: orderResult.lastID,
+      order: order
+    });
+    
+  } catch (error) {
+    console.error('Error:', error);
+    res.json({
+      success: false,
+      error: error.message,
+      code: error.code
+    });
+  }
 });
