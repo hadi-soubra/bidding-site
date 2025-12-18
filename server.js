@@ -484,10 +484,7 @@ app.post('/api/items', authenticate, upload.array('images', 3), async (req, res)
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-// Convert to UTC
-const endTimeDate = new Date(end_time);
-const endTimeFormatted = endTimeDate.toISOString().replace('T', ' ').substring(0, 19);
-
+const endTimeFormatted = end_time;
     // Insert item (current_price starts same as initial_price)
     const result = await db.run(
       `INSERT INTO ITEMS (item_name, item_description, item_category, initial_price, current_price, host_id, item_status, end_time) 
