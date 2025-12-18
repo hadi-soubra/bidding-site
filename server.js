@@ -484,9 +484,9 @@ app.post('/api/items', authenticate, upload.array('images', 3), async (req, res)
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Convert end_time to proper format WITHOUT timezone conversion
-    // Keep it as local time
-    const endTimeFormatted = end_time.replace('T', ' ') + ':00';
+// Convert to UTC
+const endTimeDate = new Date(end_time);
+const endTimeFormatted = endTimeDate.toISOString().replace('T', ' ').substring(0, 19);
 
     // Insert item (current_price starts same as initial_price)
     const result = await db.run(
