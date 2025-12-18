@@ -95,7 +95,7 @@
         console.log('🔄 Loading profile and orders...');
 
         // Load profile (won items from ITEMS table)
-        const profileResponse = await fetch('http://localhost:3000/api/bidder/profile', {
+        const profileResponse = await fetch('/api/bidder/profile', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -107,7 +107,7 @@
         document.getElementById('bidder-name').textContent = profileData.bidder_name;
 
         // Load orders
-        const ordersResponse = await fetch('http://localhost:3000/api/bidder/orders', {
+        const ordersResponse = await fetch('/api/bidder/orders', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
