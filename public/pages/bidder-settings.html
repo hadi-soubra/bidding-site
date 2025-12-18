@@ -209,7 +209,7 @@
     // Load addresses
     async function loadAddresses() {
       try {
-        const response = await fetch('http://localhost:3000/api/bidder/addresses', {
+        const response = await fetch('/api/bidder/addresses', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -248,7 +248,7 @@
       if (!confirm('Delete this address?')) return;
 
       try {
-        await fetch(`http://localhost:3000/api/bidder/addresses/${id}`, {
+        await fetch(`/api/bidder/addresses/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -284,7 +284,7 @@
       };
 
       try {
-        const response = await fetch('http://localhost:3000/api/bidder/addresses', {
+        const response = await fetch('/api/bidder/addresses', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -308,7 +308,7 @@
     // Load payment methods
     async function loadPaymentMethods() {
       try {
-        const response = await fetch('http://localhost:3000/api/bidder/payment-methods', {
+        const response = await fetch('/api/bidder/payment-methods', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -347,7 +347,7 @@
       if (!confirm('Delete this payment method?')) return;
 
       try {
-        await fetch(`http://localhost:3000/api/bidder/payment-methods/${id}`, {
+        await fetch(`/api/bidder/payment-methods/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -382,7 +382,7 @@
       };
 
       try {
-        const response = await fetch('http://localhost:3000/api/bidder/payment-methods', {
+        const response = await fetch('/api/bidder/payment-methods', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
