@@ -100,7 +100,7 @@
    // Load profile and items
 async function loadProfile() {
   try {
-    const response = await fetch('http://localhost:3000/api/host/profile', {
+    const response = await fetch('/api/host/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -152,7 +152,7 @@ function displayItems(items) {
 
     // Add image support
     const imageSrc = item.images && item.images.length > 0 
-      ? `http://localhost:3000/${item.images[0].image_path}`
+      ? `/${item.images[0].image_path}`
       : null;
 
     return `
