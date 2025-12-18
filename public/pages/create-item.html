@@ -284,9 +284,13 @@
       formData.append('item_description', document.getElementById('description').value);
       formData.append('item_category', document.getElementById('category').value);
       formData.append('initial_price', document.getElementById('initial_price').value);
-      formData.append('end_time', document.getElementById('end_time').value);
-
-      // Add selected images
+      
+        // Convert to UTC
+        const endTimeInput = document.getElementById('end_time').value;
+        const endTimeDate = new Date(endTimeInput);
+        const endTimeUTC = endTimeDate.toISOString().slice(0, 19).replace('T', ' ');
+        formData.append('end_time', endTimeUTC);
+              // Add selected images
       selectedFiles.forEach(file => {
         formData.append('images', file);
       });
@@ -299,6 +303,7 @@
           },
           body: formData
         });
+
 
         const result = await response.json();
 
