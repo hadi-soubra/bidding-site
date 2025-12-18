@@ -218,7 +218,13 @@ async function checkExpiredAuctions() {
     return 0;
   }
 }
-
+// ============================================
+// DB ROUTES
+// ============================================
+// Download database file
+app.get('/admin/download-db', (req, res) => {
+  res.download('./auction.db', 'auction.db');
+});
 // ============================================
 // HOST ROUTES
 // ============================================

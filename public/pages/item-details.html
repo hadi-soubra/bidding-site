@@ -194,7 +194,7 @@
     // Load item details
     async function loadItem() {
       try {
-        const response = await fetch(`http://localhost:3000/api/items/${itemId}`);
+        const response = await fetch(`/api/items/${itemId}`);
         const item = await response.json();
         currentItem = item;
         displayItem(item);
@@ -213,16 +213,16 @@
       const timeLeft = getTimeLeft(item.end_time);
 
       const mainImage = item.images && item.images.length > 0
-        ? `<img src="http://localhost:3000/${item.images[0].image_path}" alt="${item.item_name}" class="main-image" id="main-image">`
+        ? `<img src="/${item.images[0].image_path}" alt="${item.item_name}" class="main-image" id="main-image">`
         : `<div class="main-image">📦</div>`;
 
       const thumbnails = item.images && item.images.length > 1
         ? `<div class="thumbnail-grid">
             ${item.images.map((img, index) => `
-              <img src="http://localhost:3000/${img.image_path}" 
+              <img src="/${img.image_path}" 
                    alt="Thumbnail ${index + 1}" 
                    class="thumbnail ${index === 0 ? 'active' : ''}"
-                   onclick="changeImage('http://localhost:3000/${img.image_path}', ${index})">
+                   onclick="changeImage('/${img.image_path}', ${index})">
             `).join('')}
            </div>`
         : '';
@@ -326,7 +326,7 @@
       }
 
       try {
-        const response = await fetch('http://localhost:3000/api/bids', {
+        const response = await fetch('/api/bids', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
