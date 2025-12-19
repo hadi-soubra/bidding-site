@@ -115,14 +115,21 @@ async function checkExpiredAuctions() {
   
   try {
     // Find expired items - MAKE SURE TO SELECT host_id!
-    const expiredItems = await db.all(
-      `SELECT i.item_id, i.item_name, i.end_time, i.host_id, i.item_status,
-              datetime(i.end_time) as end_dt,
-              datetime('now', 'localtime') as now_dt
-       FROM ITEMS i
-       WHERE datetime(i.end_time) <= datetime('now')
-       AND i.item_status = 'available'`
-    );
+const expiredItems = await db.all(
+  `SELECT i.item_id, i.item_name, i.end_time, i.host_id, i.item_status,
+          datetime(i.end_time) as end_dt,
+          datetime('now') as now_dt
+   FROM ITEMS i
+   WHERE datetime(i.end_time) <= datetime('now')
+   AND i.item_status = 'available'`
+);
+
+// DEBUG: Show all items
+const allItems = await db.all('SELECT item_id, item_name, end_time, item_status FROM ITEMS');
+console.log('🔍 ALL ITEMS:', allItems);
+console.log('🔍 Current time:', new Date().toISOString());
+
+console.log(`📦 Found ${expiredItems.length} expired items`);
 
     console.log(`📦 Found ${expiredItems.length} expired items`);
 
@@ -485,6 +492,7 @@ app.post('/api/items', authenticate, upload.array('images', 3), async (req, res)
     }
 
 const endTimeFormatted = end_time;
+
     // Insert item (current_price starts same as initial_price)
     const result = await db.run(
       `INSERT INTO ITEMS (item_name, item_description, item_category, initial_price, current_price, host_id, item_status, end_time) 
