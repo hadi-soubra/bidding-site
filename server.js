@@ -127,6 +127,8 @@ const expiredItems = await db.all(
 // DEBUG: Show all items
 const allItems = await db.all('SELECT item_id, item_name, end_time, item_status FROM ITEMS');
 console.log('🔍 ALL ITEMS:', allItems);
+console.log('🔍 ALL ITEMS count:', allItems.length);
+console.log('🔍 Database file path:', require('path').resolve('./auction.db'));
 console.log('🔍 Current time:', new Date().toISOString());
 
 console.log(`📦 Found ${expiredItems.length} expired items`);
