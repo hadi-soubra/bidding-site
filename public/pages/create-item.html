@@ -285,7 +285,9 @@
       formData.append('item_category', document.getElementById('category').value);
       formData.append('initial_price', document.getElementById('initial_price').value);
       
-formData.append('end_time', document.getElementById('end_time').value.replace('T', ' ') + ':00');
+const localTime = document.getElementById('end_time').value;
+const utcTime = new Date(localTime).toISOString().slice(0, 19).replace('T', ' ');
+formData.append('end_time', utcTime);
 
               // Add selected images
       selectedFiles.forEach(file => {
