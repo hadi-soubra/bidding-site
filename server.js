@@ -120,7 +120,7 @@ const expiredItems = await db.all(
           datetime(i.end_time) as end_dt,
           datetime('now') as now_dt
    FROM ITEMS i
-   WHERE i.end_time <= datetime('now', 'localtime')
+   WHERE datetime(i.end_time) <= datetime('now', 'localtime')
    AND i.item_status = 'available'`
 );
 
