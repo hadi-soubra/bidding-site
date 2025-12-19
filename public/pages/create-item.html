@@ -276,6 +276,11 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Disable button to prevent double-submit
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating...';
+        
       errorDiv.style.display = 'none';
       successDiv.style.display = 'none';
 
@@ -318,10 +323,12 @@ formData.append('end_time', utcTime);
           errorDiv.textContent = result.error;
           errorDiv.style.display = 'block';
         }
-      } catch (error) {
-        errorDiv.textContent = 'Failed to create item. Please try again.';
-        errorDiv.style.display = 'block';
-      }
+        } catch (error) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Item';
+          errorDiv.textContent = 'Failed to create item. Please try again.';
+          errorDiv.style.display = 'block';
+        }
     });
   </script>
 </body>
