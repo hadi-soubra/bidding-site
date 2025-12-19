@@ -208,7 +208,7 @@
     // Display item
     function displayItem(item) {
       const now = new Date();
-      const endTime = new Date(item.end_time);
+      const endTime = new Date(item.end_time + 'Z');
       const isEnded = endTime <= now;
       const timeLeft = getTimeLeft(item.end_time);
 
@@ -369,7 +369,7 @@
     // Calculate time left
     function getTimeLeft(endTime) {
       const now = new Date();
-      const end = new Date(endTime);
+      const end = new Date(endTime + 'Z');  // Must have + 'Z'
       const diff = end - now;
 
       if (diff <= 0) return '⏰ Ended';

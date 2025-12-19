@@ -57,7 +57,7 @@
       // Only show available items (not ended)
       const availableItems = items.filter(item => {
         const now = new Date();
-        const endTime = new Date(item.end_time);
+      const endTime = new Date(item.end_time + 'Z');
         return endTime > now;
       });
 
@@ -101,7 +101,7 @@
     // Calculate time left
     function getTimeLeft(endTime) {
       const now = new Date();
-      const end = new Date(endTime);
+      const end = new Date(endTime + 'Z');
       const diff = end - now;
 
       if (diff <= 0) return '⏰ Ended';
