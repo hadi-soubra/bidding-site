@@ -288,7 +288,7 @@
                     <div>
                       <strong>${bid.bidder_name}</strong>
                       <div style="font-size: 0.85rem; color: #666;">
-                        ${new Date(bid.bid_time).toLocaleString()}
+                          ${new Date(bid.bid_time + 'Z').toLocaleString()}
                       </div>
                     </div>
                     <div style="font-size: 1.2rem; font-weight: bold; color: #667eea;">
