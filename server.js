@@ -52,7 +52,7 @@ let db;
 })();
 
 // Check for expired auctions every 10 seconds
-setInterval(checkExpiredAuctions, 1000);
+setInterval(checkExpiredAuctions, 10000);
 
 // ============================================
 // FILE UPLOAD CONFIGURATION
