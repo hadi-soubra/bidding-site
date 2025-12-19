@@ -144,7 +144,7 @@ function displayItems(items) {
 
   grid.innerHTML = items.map(item => {
     const now = new Date();
-    const endTime = new Date(item.end_time);
+    const endTime = new Date(item.end_time + 'Z');
     const isEnded = endTime <= now;
     const displayStatus = isEnded ? 'ended' : 'available';
     const statusText = isEnded ? 'ENDED' : 'AVAILABLE';
@@ -185,7 +185,7 @@ function displayItems(items) {
 // Calculate time left
 function getTimeLeft(endTime) {
   const now = new Date();
-  const end = new Date(endTime);
+  const end = new Date(endTime + 'Z');  // Must have + 'Z'
   const diff = end - now;
 
   if (diff <= 0) return '⏰ Ended';
