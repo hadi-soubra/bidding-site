@@ -133,10 +133,10 @@ console.log('🔍 ALL ITEMS:', allItems);
 console.log('🔍 ALL ITEMS count:', allItems.length);
 console.log('🔍 Database file path:', require('path').resolve('./auction.db'));
 console.log('🔍 Current time:', new Date().toISOString());
-
+const serverLocalTime = await db.get("SELECT datetime('now', 'localtime') as time");
+console.log('🔍 Server localtime:', serverLocalTime);
 console.log(`📦 Found ${expiredItems.length} expired items`);
 
-    console.log(`📦 Found ${expiredItems.length} expired items`);
 
     for (let item of expiredItems) {
       console.log(`\n⏰ Processing item ${item.item_id}:`);
