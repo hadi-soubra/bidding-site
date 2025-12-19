@@ -51,6 +51,9 @@ let db;
   console.log('✅ Server connected to database');
 })();
 
+// Check for expired auctions every 10 seconds
+setInterval(checkExpiredAuctions, 1000);
+
 // ============================================
 // FILE UPLOAD CONFIGURATION
 // ============================================
