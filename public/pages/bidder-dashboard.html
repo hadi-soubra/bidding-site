@@ -37,7 +37,7 @@
   <div class="container">
     <nav>
       <div>
-        <strong>🛍️ My Activity</strong>
+        <strong>My Activity</strong>
       </div>
       <div class="nav-links">
         <a href="items.html">Browse Auctions</a>
@@ -48,7 +48,7 @@
 
     <div class="dashboard">
       <div class="dashboard-header">
-        <h2>Welcome, <span id="bidder-name">Loading...</span>! 👋</h2>
+        <h2>Welcome, <span id="bidder-name">Loading...</span>! </h2>
       </div>
 
       <div class="stats-grid">
@@ -92,7 +92,7 @@
     // Load profile
     async function loadProfile() {
       try {
-        console.log('🔄 Loading profile and orders...');
+        console.log(' Loading profile and orders...');
 
         // Load profile (won items from ITEMS table)
         const profileResponse = await fetch('/api/bidder/profile', {
@@ -166,7 +166,7 @@
         return `
           <div class="item-card" ${hasPendingCheckout ? 'style="border: 3px solid #e67e22;"' : ''}>
             <div class="item-image" style="display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #999;">
-              📦
+
             </div>
             <div class="item-content">
               <h3>${item.item_name}</h3>
@@ -175,14 +175,14 @@
               
               ${hasPendingCheckout 
                 ? `<span class="item-status" style="background: #e67e22; color: white; padding: 8px 15px; border-radius: 20px; display: inline-block; margin: 10px 0;">
-                     ⚠️ NEEDS CHECKOUT
+                     NEEDS CHECKOUT
                    </span>
                    <a href="checkout.html?order_id=${pendingOrder.order_id}" 
                       class="btn btn-success" 
                       style="width: 100%; margin-top: 15px; text-align: center; padding: 15px; font-size: 1.1rem;">
                      Complete Checkout →
                    </a>`
-                : `<span class="item-status status-sold">✅ COMPLETED</span>
+                : `<span class="item-status status-sold"> COMPLETED</span>
                    <a href="item-details.html?id=${item.item_id}" 
                       class="btn btn-secondary" 
                       style="width: 100%; margin-top: 15px; text-align: center;">

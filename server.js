@@ -237,6 +237,66 @@ console.log(`📦 Found ${expiredItems.length} expired items`);
 app.get('/admin/download-db', (req, res) => {
   res.download('./auction.db', 'auction.db');
 });
+
+
+// ============================================
+// ADVANCED SQL FEATURES
+// ============================================
+
+// 1. Aggregate Query with GROUP BY - Sales by category
+app.get('/api/host/stats/category', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'host') {
+    return res.status(403).json({ error: 'Host access only' });
+  }
+
+  try {
+    const stats = await db.all(`
+      SELECT 
+        i.item_category,
+        COUNT(*) as total_items,
+        COALESCE(SUM(o.final_price), 0) as total_revenue,
+        COALESCE(AVG(o.final_price), 0) as avg_price,
+        COALESCE(MAX(o.final_price), 0) as highest_sale
+      FROM ITEMS i
+      LEFT JOIN Orders o ON i.item_id = o.item_id
+      WHERE i.host_id = ? AND i.item_status = 'sold'
+      GROUP BY i.item_category
+      ORDER BY total_revenue DESC
+    `, [req.user.id]);
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. Set Operation Query - UNION of all users
+app.get('/api/admin/active-users', async (req, res) => {
+  try {
+    const users = await db.all(`
+      SELECT host_id as user_id, host_name as name, host_email as email, 'host' as role
+      FROM HOST
+      UNION
+      SELECT bidder_id as user_id, bidder_name as name, bidder_email as email, 'bidder' as role
+      FROM BIDDER
+      ORDER BY name
+    `);
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 3. View Query - Active Auctions
+app.get('/api/auctions/active', async (req, res) => {
+  try {
+    const auctions = await db.all('SELECT * FROM ActiveAuctions ORDER BY end_time ASC');
+    res.json(auctions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // ============================================
 // HOST ROUTES
 // ============================================
@@ -924,39 +984,58 @@ app.get('/api/bidder/orders', authenticate, async (req, res) => {
 });
 
 // Complete checkout (select payment and shipping)
-app.post('/api/orders/:id/checkout', authenticate, async (req, res) => {
+// 3. TRANSACTION - Checkout with BEGIN/COMMIT/ROLLBACK
+app.post('/api/orders/:id/checkout', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'bidder') {
+    return res.status(403).json({ error: 'Bidder access only' });
+  }
+
+  const { payment_id, address_id } = req.body;
+
+  // START TRANSACTION
+  await db.run('BEGIN TRANSACTION');
+
   try {
-    if (req.user.role !== 'bidder') {
-      return res.status(403).json({ error: 'Only bidders can checkout' });
-    }
-
-    const { payment_id, address_id } = req.body;
-
-    if (!payment_id || !address_id) {
-      return res.status(400).json({ error: 'Payment method and shipping address are required' });
-    }
-
-    // Verify order belongs to this bidder
+    // 1. Verify order belongs to bidder
     const order = await db.get(
       'SELECT * FROM Orders WHERE order_id = ? AND bidder_id = ?',
       [req.params.id, req.user.id]
     );
 
     if (!order) {
+      await db.run('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Update order with payment and shipping info
-await db.run(
-  `UPDATE Orders 
-   SET payment_id = ?, address_id = ?, order_status = 'paid'
-   WHERE order_id = ?`,
-  [payment_id, address_id, req.params.id]
-);
+    if (order.order_status !== 'pending_checkout') {
+      await db.run('ROLLBACK');
+      return res.status(400).json({ error: 'Order already completed' });
+    }
 
-    res.json({ message: 'Checkout completed successfully' });
+    // 2. Update order with payment and address
+    await db.run(
+      `UPDATE Orders 
+       SET payment_id = ?, address_id = ?, order_status = 'completed', 
+           order_date = datetime('now')
+       WHERE order_id = ?`,
+      [payment_id, address_id, req.params.id]
+    );
 
+    // 3. Update item status
+    await db.run(
+      `UPDATE ITEMS SET item_status = 'completed' WHERE item_id = ?`,
+      [order.item_id]
+    );
+
+    // COMMIT TRANSACTION
+    await db.run('COMMIT');
+    console.log('✅ Transaction committed successfully');
+
+    res.json({ message: 'Checkout successful!' });
   } catch (error) {
+    // ROLLBACK ON ERROR
+    await db.run('ROLLBACK');
+    console.error('❌ Transaction rolled back:', error);
     res.status(500).json({ error: error.message });
   }
 });

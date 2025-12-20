@@ -31,13 +31,120 @@
       font-size: 0.9rem;
       opacity: 0.9;
     }
+
+    /* Stats Section */
+.stats-section {
+  margin: 2rem 0;
+  padding: 2rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stats-section h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.75rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  transition: transform 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.stat-icon {
+  font-size: 3rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.category-stats {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.category-stats h3 {
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.25rem;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  border-left: 4px solid #667eea;
+  transition: all 0.3s;
+}
+
+.category-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.category-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.category-stats-detail {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.category-revenue {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 1.25rem;
+}
+
   </style>
 </head>
 <body>
   <div class="container">
 <nav>
   <div>
-    <strong>🏪 Host Dashboard</strong>
+    <strong>Host Dashboard</strong>
   </div>
   <div class="nav-links">
     <a href="create-item.html">+ Create Item</a>
@@ -48,8 +155,44 @@
 
     <div class="dashboard">
       <div class="dashboard-header">
-        <h2>Welcome, <span id="host-name">Loading...</span>! 👋</h2>
+        <h2>Welcome, <span id="host-name">Loading...</span>! </h2>
       </div>
+
+      <!-- Stats Section - ADD THIS -->
+<div class="stats-section">
+  <h2>Sales Analytics</h2>
+  
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon"></div>
+      <div class="stat-content">
+        <div class="stat-value" id="total-revenue">$0</div>
+        <div class="stat-label">Total Revenue</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon"></div>
+      <div class="stat-content">
+        <div class="stat-value" id="items-sold">0</div>
+        <div class="stat-label">Items Sold</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon"></div>
+      <div class="stat-content">
+        <div class="stat-value" id="avg-price">$0</div>
+        <div class="stat-label">Average Price</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="category-stats">
+    <h3>Sales by Category</h3>
+    <div id="category-breakdown"></div>
+  </div>
+</div>
 
       <div class="stats-grid">
         <div class="stat-card">
@@ -188,17 +331,17 @@ function getTimeLeft(endTime) {
   const end = new Date(endTime + 'Z');  // Must have + 'Z'
   const diff = end - now;
 
-  if (diff <= 0) return '⏰ Ended';
+  if (diff <= 0) return ' Ended';
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-  if (days > 0) return `⏰ ${days}d ${hours}h left`;
-  if (hours > 0) return `⏰ ${hours}h ${minutes}m left`;
-  if (minutes > 0) return `⏰ ${minutes}m ${seconds}s left`;
-  return `⏰ ${seconds}s left`;
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  if (minutes > 0) return `${minutes}m ${seconds}s left`;
+  return `${seconds}s left`;
 }
 
     // Load on page load

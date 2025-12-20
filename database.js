@@ -130,6 +130,42 @@ CREATE TABLE IF NOT EXISTS Orders (
     CREATE INDEX IF NOT EXISTS idx_orders_host ON Orders(host_id);
   `);
 
+  // ============= VIEWS =============
+await db.exec(`
+  CREATE VIEW IF NOT EXISTS ActiveAuctions AS
+  SELECT 
+    i.item_id,
+    i.item_name,
+    i.item_category,
+    i.current_price,
+    i.end_time,
+    h.host_name,
+    COUNT(b.bid_id) as bid_count,
+    MAX(b.bid_amount) as highest_bid
+  FROM ITEMS i
+  JOIN HOST h ON i.host_id = h.host_id
+  LEFT JOIN bids b ON i.item_id = b.item_id
+  WHERE i.item_status = 'available'
+    AND datetime(i.end_time) > datetime('now')
+  GROUP BY i.item_id
+`);
+
+console.log('✅ Views created');
+
+// ============= TRIGGERS =============
+await db.exec(`
+  CREATE TRIGGER IF NOT EXISTS update_item_price_on_bid
+  AFTER INSERT ON bids
+  BEGIN
+    UPDATE ITEMS
+    SET current_price = NEW.bid_amount
+    WHERE item_id = NEW.item_id
+      AND NEW.bid_amount > current_price;
+  END;
+`);
+
+console.log('✅ Triggers created');
+
   console.log('✅ Database initialized with Payment, Shipping, and Address tables');
   
   return db;
