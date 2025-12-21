@@ -259,7 +259,7 @@ app.get('/api/host/stats/category', authenticateToken, async (req, res) => {
         COALESCE(MAX(o.final_price), 0) as highest_sale
       FROM ITEMS i
       LEFT JOIN Orders o ON i.item_id = o.item_id
-      WHERE i.host_id = ? AND i.item_status = 'sold'
+      WHERE i.host_id = ? AND o.order_id IS NOT NULL
       GROUP BY i.item_category
       ORDER BY total_revenue DESC
     `, [req.user.id]);
